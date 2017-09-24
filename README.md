@@ -22,3 +22,7 @@ I choose to use Flask as it is light-weight and support multi-threaded service f
 * cache expiration time
 
 I use environment variable when running docker application to pass in arguments
+
+### Cache Layer
+
+There is existing library to cache data on disk with expiration, I just use that library to achieve this effect. If I would to implement by myself, I would create cache file and spawn a thread to unlink it when timer expires.
