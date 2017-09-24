@@ -1,0 +1,28 @@
+version: '2'
+services:
+  web:
+    image: reverse_proxy
+    environment:
+      - SLOW_THRESH=0.2
+      - CACHE_EXPIRE=3
+    networks:
+      - front-tier
+      - back-tier
+
+  lb:
+    image: dockercloud/haproxy
+    ports:
+      - 80:80
+    links:
+      - web
+    networks:
+      - front-tier
+      - back-tier
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+networks:
+  front-tier:
+    driver: bridge
+  back-tier:
+    driver: bridge
