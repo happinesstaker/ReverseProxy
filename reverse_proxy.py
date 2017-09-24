@@ -10,6 +10,7 @@ import time
 import os
 
 from flask import Flask, request, Response, jsonify
+from redis import Redis
 import requests
 import pyfscache
 
@@ -18,6 +19,8 @@ SLOW_THRESH = 1.0 #unit: second
 CACHE_EXPIRE = 5 #unit: minute
 
 app = Flask(__name__)
+conn = Redis(host='db', port=6379)
+
 slow_request_dict = defaultdict(str)
 query_dict = defaultdict(int)
 lock = Lock()
@@ -27,8 +30,9 @@ def dispatch(query):
     url = NEXT_BUS_API_ENDPOINT + query
     endpoint = request.query_string
 
-    with lock:
-        query_dict[endpoint] += 1
+    # with lock:
+    #     query_dict[endpoint] += 1
+    conn.hincrby('queries', endpoint)
 
     if endpoint in cache_it:
         return cache_it[endpoint]
@@ -37,9 +41,11 @@ def dispatch(query):
     res = requests.get(url, params=request.args)
     elapse = time.time() - start
 
-    with lock:
-        if elapse > SLOW_THRESH:
-            slow_request_dict[endpoint] = "%.1fs" % elapse
+    # with lock:
+    #     if elapse > SLOW_THRESH:
+    #         slow_request_dict[endpoint] = "%.1fs" % elapse
+    if elapse > SLOW_THRESH:
+        conn.hset('slow_requests', endpoint, "%.1f" % elapse)
 
     response = Response(res.content, res.status_code, [('Content-Type', res.headers['Content-Type'])])
     cache_it[endpoint] = response
@@ -49,7 +55,8 @@ def dispatch(query):
 def get_stat():
     # no need to lock when reading, it is OK to get obsolete stat data
     # of course we can also use rwlock, but let's simplify everything
-    return jsonify({'slow_requests':slow_request_dict, 'queries':query_dict})
+
+    return jsonify({'slow_requests':conn.hgetall('slow_requests'), 'queries':conn.hgetall('queries')})
 
 if __name__ == '__main__':
     if 'SLOW_THRESH' in os.environ:

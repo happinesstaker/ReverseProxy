@@ -5,6 +5,8 @@ services:
     environment:
       - SLOW_THRESH=0.2
       - CACHE_EXPIRE=3
+    links:
+      - db
     networks:
       - front-tier
       - back-tier
@@ -20,6 +22,12 @@ services:
       - back-tier
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
+  db:
+    image: redis
+    networks:
+      - back-tier
+
 
 networks:
   front-tier:
